@@ -1,0 +1,61 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: airflow-postgres
+spec:
+  type: NodePort
+  selector:
+    app: airflow-postgres
+  ports:
+  - port: 5432
+    targetPort: 5432
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: airflow-postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: airflow-postgres
+  template:
+    metadata:
+      labels:
+        app: airflow-postgres
+    spec:
+      volumes:
+        - name: postgres-data
+          emptyDir: {}
+      containers:
+      - name: airflow-postgres
+        image: postgres:14
+        resources:
+          limits:
+            cpu: 200m
+            memory: 256Mi
+          requests:
+            cpu: 100m
+            memory: 128Mi
+        imagePullPolicy: "IfNotPresent"
+        ports:
+        - containerPort: 5432
+        volumeMounts:
+          - name: postgres-data
+            mountPath: /data
+        env:
+          - name: POSTGRES_DB
+            valueFrom:
+              configMapKeyRef:
+                name: postgres-configmap
+                key: POSTGRES_DB
+          - name: POSTGRES_USER
+            valueFrom:
+              secretKeyRef:
+                name: postgres-secret
+                key: POSTGRES_USER
+          - name: POSTGRES_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: postgres-secret
+                key: POSTGRES_PASSWORD

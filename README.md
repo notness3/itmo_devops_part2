@@ -7,55 +7,50 @@
 
 18.05.2023 - ЛР 2. Docker-compose
 
+25.05.2023 - ЛР 3. Kubernetes
 
-## Запуск проекта
+03.06.2023 - ЛР 4. More Kubernetes
 
-- [ ] Собрать и запустить проект можно с помощью команды: `docker compose up --build -d`
-- [ ] Данные пользователя - username: `airflow_user`, password: `airflow_password`
+## Ход работы
 
+### Шаг 0 - Запускаем minikube
 
-## Задача
-На основе `Dockerfile` из ЛР 1 создать композ проект. Обязательные требования:
+```
+minikube start --force
+```
 
-- [x] минимум 1 init + 2 app сервиса (одноразовый init + приложение + бд или что-то другое, главное чтоб работало в связке)
-- [x] автоматическая сборка образа из лежащего рядом `Dockerfile` и присваивание ему (образу) имени
-- [x] жесткое именование получившихся контейнеров
-- [x] минимум один из сервисов обязательно с `depends_on`
-- [x] минимум один из сервисов обязательно с `volume`
-- [x] минимум один из сервисов обязательно с прокидыванием порта наружу
-- [x] минимум один из сервисов обязательно с ключом `command` и/или `entrypoint` (можно переиспользовать тот же, что в `Dockerfile`)
-- [x] добавить `healthcheck`
-- [x] все env-ы прописать не в сам docker-compose.yml, а в лежащий рядом файл `.env`
-- [x] должна быть явно указана `network` (одна для всех)
+### Шаг 1 - Собираем кастомный докер в minikube
 
-### Вопросы
+```
+eval $(minikube docker-env)
+docker build -t my/airflow_custom_build:local .
+```
 
-1. **Можно ли ограничивать ресурсы (например, память или CPU) для сервисов в docker-compose.yml? Если нет, то почему, если да, то как?**
-- Можно, необходимо в каждом из сервисов прописать следующие настройки, согласно https://docs.docker.com/compose/compose-file/deploy/#resources:
+<img src="screenshots/build_custom_image.jpg" height=300 align = "center"/>
 
-```yaml
-deploy:
-  resources:
-    limits:
-      cpus: '0.5'
-      memory: 50M
-    reservations:
-      cpus: '0.5'
-      memory: 20M
- ```
-2. **Как можно запустить только определенный сервис из docker-compose.yml, не запуская остальные?**
-- `docker compose start [service_name_from_compose]`
-- `docker compose up [service_name_from_compose]`
+### Шаг 2 - Добавляем манифесты
 
+```
+kubectl create -f postgres_configmap.yml
+kubectl create -f postgres_secret.yml
+kubectl create -f airflow_configmap.yml
+kubectl create -f airflow_secret.yml
+kubectl create -f airflow_postgres.yml
+kubectl create -f airflow_init.yml
+kubectl create -f airflow_scheduler.yml
+kubectl create -f airflow_webserver.yml
+```
 
-## Описание DAG
+<img src="screenshots/pods_status.jpg" height=300 align = "center"/>
 
-Данный DAG предназначен для обучения модели градиентного бустинга на задачу бинарной классификации (файл для обучения - /data/train.csv, файл для тестирования - /data/test.csv). Результат выполнения - модель, сохраненная в /data/model.pkl.
+### Шаг 3 - Запускаем на remote хосте, поэтому прокидываем порты
 
-Этапы выполнения:
-- read_csv - чтение файла для обучения
-- preprocess_data - подготовка данных, разделение на тренировочную и тестовую выборки
-- train_model - обучение и сохранение модели
-- test_model - подсчет качества на тестовой выборке 
+```
+kubectl port-forward --address localhost,147.45.252.106 deployment/airflow-webserver 8080
+```
 
+<img src="screenshots/port_forwarding.jpg" height=300 align = "center"/>
 
+### Шаг 4 - Проверяем сервис
+
+<img src="screenshots/service.jpg" height=300 align = "center"/>
